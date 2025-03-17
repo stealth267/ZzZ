@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Práctica Chino – PC + Firebase</title>
+  
+  <!-- Librerías para CSV/Excel & Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Estilos (CSS) -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      color: #333;
+      overflow-x: hidden;
+      transition: background 0.3s, color 0.3s;
+    }
+    .app-container {
+      display: flex;
+      position: relative;
+      min-height: 100vh;
+      width: 100%;
+    }
+    .side-nav {
+      position: fixed;
+      top: 0;
+      right: -320px;
+      width: 240px;
+      height: 100%;
+      background: #fff;
+      transition: right 0.3s ease;
+      z-index: 9999;
+      padding: 20px 10px;
+      overflow-y: auto;
+    }
+    .side-nav.open {
+      right: 0;
+      border-left: 1px solid #ccc;
+      box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+    }
+    .side-nav h2 {
+      font-size: 18px;
+      margin: 0 0 1em;
+      text-align: center;
+    }
+    .side-nav button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin: 0.2em 0;
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .menu-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 40px;
+      height: 40px;
+      background: #333;
+      color: #fff;
+      font-size: 26px;
+      border: none;
+      border-radius: 4px;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    main {
+      flex: 1;
+      padding: 10px;
+      transition: margin-right 0.3s ease;
+    }
+    section {
+      display: none;
+      padding: 15px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      max-width: 1200px;
+      margin: 0 auto 20px;
+    }
+    section.active {
+      display: block;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .flashcard {
+      font-size: 48px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border: 4px solid transparent;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      transition: border-color 0.3s;
+      background-color: #fff;
+      border-left: 10px solid #fff;
+      border-right: 10px solid #fff;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 16px;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 8px;
+      text-align: center;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+    th {
+      background: #eee;
+    }
+    form input, form textarea, form select {
+      margin: 5px 0;
+      padding: 8px;
+      font-size: 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    form button {
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      margin: 5px 0;
+    }
+    .tabs {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .tabs button {
+      margin: 0 5px;
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .tabContent {
+      display: none;
+    }
+    .tabContent.active {
+      display: block;
+    }
+    .dark-theme {
+      background: #1e1e1e;
+      color: #ddd;
+    }
+    .dark-theme section {
+      background: #2a2a2a;
+      border-color: #555;
+    }
+    .dark-theme th {
+      background: #333;
+      color: #ddd;
+    }
+    .dark-theme .side-nav {
+      background: #2a2a2a;
+    }
+    .dark-theme .side-nav.open {
+      border-left-color: #555;
+    }
+    .dark-theme .side-nav button {
+      background: #333;
+      color: #ddd;
+    }
+    .modal {
+      display: none; 
+      position: fixed; 
+      z-index: 20000; 
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto; 
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 500px;
+    }
+    .closeModal {
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .responseButtons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .responseButtons button {
+      font-size: 18px;
+      padding: 12px 24px;
+    }
+    /* Clase para agrupar botones de sesión con ancho del 20% alineados a la izquierda */
+    .session-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 20px;
+      width: 20%;
+    }
+    .session-buttons button {
+      width: 100%;
+    }
+    #progressBarContainer {
+      position: relative;
+      background: #ddd;
+      width: 100%;
+      height: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    #progressBar {
+      background: #4CAF50;
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #progressCount {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      line-height: 20px;
+      font-size: 14px;
+      color: #000;
+    }
+    #wordSearch {
+      font-size: 20px;
+      padding: 10px;
+      margin: 10px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #wordForm div {
+      margin-bottom: 10px;
+    }
+    #wordForm label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    #wordForm input, #wordForm textarea {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #fieldsForm div {
+      margin-bottom: 10px;
+    }
+    #fieldsForm label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    #fieldsForm input, #fieldsForm select {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #fieldsList {
+      list-style: none;
+      padding: 0;
+    }
+    #fieldsList li {
+      margin-bottom: 5px;
+      padding: 5px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+    }
+    #fieldsList button {
+      background: #f77;
+      border: none;
+      padding: 2px 6px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    #saveFieldsOrder {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <!-- Botón hamburguesa -->
+  <button class="menu-toggle" id="menuToggle">☰</button>
+  <!-- Contenedor principal -->
+  <div class="app-container">
+    <!-- Menú Lateral -->
+    <nav class="side-nav" id="sideNav">
+      <h2>Menú</h2>
+      <button id="btnPracticar">Practicar</button>
+      <button id="btnGestionar">Gestionar</button>
+      <button id="btnEstadisticas">Estadísticas</button>
+      <button id="btnNuevas">Nuevas Palabras</button>
+      <button id="btnAjustes">Ajustes</button>
+      <button id="btnLoginSection">Autenticación</button>
+    </nav>
+    <main id="mainContent">
+      <!-- SECCIÓN LOGIN -->
+      <section id="sectionLogin">
+        <h1>Autenticación Firebase</h1>
+        <div>
+          <label>Email:</label>
+          <input type="email" id="loginEmail" placeholder="ejemplo@correo.com"/>
+        </div>
+        <div>
+          <label>Contraseña:</label>
+          <input type="password" id="loginPassword" placeholder="******"/>
+        </div>
+        <br/>
+        <button id="btnRegister">Registrar</button>
+        <button id="btnLogin">Iniciar Sesión</button>
+        <button id="btnLogout" style="display:none;">Cerrar Sesión</button>
+        <p id="loginStatus" style="color:blue; margin-top:10px;"></p>
+      </section>
+      <!-- SECCIÓN PRACTICAR -->
+      <section id="sectionPracticar" class="active">
+        <h1>Modo Practicar</h1>
+        <div id="practiceOptions">
+          <label for="practiceMode">Modo: </label>
+          <select id="practiceMode">
+            <option value="normal">Añadidas</option>
+            <option value="aleatorio">Aleatorio</option>
+            <option value="dificultad">Aleatorio por Dificultad</option>
+          </select>
+          <br/><br/>
+          <!-- Selección del campo frontal -->
+          <label for="frontField">Campo frontal:</label>
+          <select id="frontField"></select>
+          <button id="startPractice">Iniciar Práctica</button>
+        </div>
+        <div id="progressBarContainer">
+          <div id="progressBar"></div>
+          <div id="progressCount"></div>
+        </div>
+        <div id="flashcard" class="flashcard">?</div>
+        <div id="details" class="details hidden"></div>
+        <div class="responseButtons">
+          <button id="btnMal" class="hidden" style="background:#f77; border:2px solid #c00;">Mal</button>
+          <button id="btnBien" class="hidden" style="background:#7f7; border:2px solid #0c0;">Bien</button>
+          <button id="btnMostrar" style="background:#eee; border:2px solid #ccc;">Mostrar</button>
+        </div>
+        <!-- Contenedor de botones de sesión con ancho del 20% alineado a la izquierda -->
+        <div class="session-buttons">
+          <button id="finishSession" style="background:#ccc;">Terminar Sesión</button>
+          <button id="resetSession">Resetear Sesión</button>
+        </div>
+      </section>
+      <!-- SECCIÓN GESTIONAR -->
+      <section id="sectionGestionar">
+        <h1>Gestionar</h1>
+        <div class="tabs">
+          <button id="tabPalabras">Palabras</button>
+          <button id="tabCampos">Campos</button>
+        </div>
+        <!-- Pestaña Palabras -->
+        <div id="tabPalabrasContent" class="tabContent active">
+          <h2>Gestión de Palabras</h2>
+          <!-- Formulario dinámico -->
+          <form id="wordForm">
+            <p>No hay campos definidos. Importa un archivo o define tus campos manualmente.</p>
+          </form>
+          <!-- Buscador en tiempo real, justo debajo del formulario -->
+          <input type="text" id="wordSearch" placeholder="Buscar palabra..."/>
+          <!-- Tabla -->
+          <table id="wordsTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+          <br/>
+          <button id="exportData">Exportar Datos (JSON)</button>
+          <input type="file" id="importData" accept=".json, .csv, .xls, .xlsx"/>
+          <!-- Botón e input para sumar datos -->
+          <button id="appendData">Sumar al archivo</button>
+          <input type="file" id="appendFile" accept=".json, .csv, .xls, .xlsx" style="display:none;"/>
+        </div>
+        <!-- Pestaña Campos -->
+        <div id="tabCamposContent" class="tabContent">
+          <h2>Gestionar Campos</h2>
+          <form id="fieldsForm">
+            <div>
+              <label for="fieldKey">Clave (key):</label>
+              <input type="text" id="fieldKey" placeholder="Nombre interno (sin espacios)" required />
+            </div>
+            <div>
+              <label for="fieldLabel">Etiqueta (label):</label>
+              <input type="text" id="fieldLabel" placeholder="Nombre a mostrar" required />
+            </div>
+            <div>
+              <label for="fieldType">Tipo:</label>
+              <select id="fieldType">
+                <option value="text">Texto</option>
+                <option value="number">Número</option>
+                <option value="textarea">Área de texto</option>
+              </select>
+            </div>
+            <div>
+              <label for="fieldRequired">Requerido:</label>
+              <input type="checkbox" id="fieldRequired" />
+            </div>
+            <button type="submit">Agregar Campo</button>
+          </form>
+          <h3>Campos Definidos</h3>
+          <ul id="fieldsList"></ul>
+          <button id="saveFieldsOrder">Guardar Cambios</button>
+        </div>
+      </section>
+      <!-- SECCIÓN ESTADÍSTICAS -->
+      <section id="sectionEstadisticas">
+        <h1>Estadísticas</h1>
+        <div style="text-align:center; margin-bottom:15px;">
+          <button id="tabGlobal">Globales</button>
+          <button id="tabSession">Sesión Actual</button>
+        </div>
+        <div id="globalStatsContainer" class="tabContent active">
+          <p id="globalStats"></p>
+          <h3>Desempeño Global por Campo frontal:</h3>
+          <table id="failTable">
+            <thead>
+              <tr>
+                <th data-field="campoFrontal">Campo frontal</th>
+                <th data-field="failCount">Fallos</th>
+                <th data-field="correctCount">Aciertos</th>
+                <th data-field="total">Intentos Totales</th>
+                <th data-field="accuracy">Promedio de Acierto</th>
+                <th>Calificación</th>
+                <th>Resetear</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="sessionStatsContainer" class="tabContent">
+          <p id="sessionStats"></p>
+          <h3>Detalle de la Sesión Actual:</h3>
+          <table id="sessionDetailTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Campo frontal</th>
+                <th>Respuesta</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+      <!-- SECCIÓN NUEVAS PALABRAS -->
+      <section id="sectionNuevas">
+        <h1>Nuevas Palabras</h1>
+        <p>Últimas <span id="newWordsCountDisplay">10</span> palabras añadidas.</p>
+        <div>
+          <label for="highlightColor">Color para sombrear:</label>
+          <input type="color" id="highlightColor" value="#000000"/>
+          <button id="btnClearHighlight">Quitar sombreado</button>
+          <button id="btnRandomizeNewWords">Aleatorio</button>
+        </div>
+        <table id="newWordsTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+      <!-- SECCIÓN AJUSTES -->
+      <section id="sectionAjustes">
+        <h1>Ajustes</h1>
+        <form id="settingsForm">
+          <label>Tecla "Mostrar":</label>
+          <input type="text" id="keyMostrar" value="m" maxlength="1" required/><br/>
+          <label>Tecla "Bien":</label>
+          <input type="text" id="keyCorrect" value="k" maxlength="1" required/><br/>
+          <label>Tecla "Mal":</label>
+          <input type="text" id="keyIncorrect" value="l" maxlength="1" required/><br/>
+          <label>Umbral de fallos (repaso):</label>
+          <input type="number" id="problemThreshold" value="2" required/><br/>
+          <label>Delay Feedback (ms):</label>
+          <input type="number" id="feedbackDelay" value="500" required/><br/>
+          <label>Audio Activado:</label>
+          <select id="audioEnabled">
+            <option value="true" selected>Si</option>
+            <option value="false">No</option>
+          </select><br/>
+          <label>Tema Oscuro:</label>
+          <input type="checkbox" id="darkTheme"/><br/>
+          <label>Notificaciones:</label>
+          <input type="checkbox" id="notificationsEnabled" checked/><br/>
+          <label>Cantidad de palabras nuevas:</label>
+          <input type="number" id="newWordsCount" value="10" min="1" required/><br/>
+          <button type="submit">Guardar Ajustes</button>
+          <button type="button" id="resetAll">Resetear Todo</button>
+        </form>
+        <br/>
+        <button type="button" id="resetStats">Resetear Estadísticas</button>
+      </section>
+    </main>
+  </div>
+  <!-- Modal para editar palabra -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <span class="closeModal" id="closeModal">×</span>
+      <h2>Editar Palabra</h2>
+      <form id="editWordForm">
+        <div id="editFields"></div>
+        <button type="submit">Guardar Cambios</button>
+      </form>
+    </div>
+  </div>
+  <!-- SCRIPT PRINCIPAL -->
+  <script type="module">
+    /********************************
+     * IMPORTS DE FIREBASE (MODULAR)
+     ********************************/
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      onSnapshot,
+      collection,
+      addDoc,
+      query,
+      onSnapshot as onSnapshotQuery,
+      getDocs,
+      deleteDoc
+    } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
+    /********************************
+     * CONFIGURACIÓN DE FIREBASE
+     ********************************/
+    const firebaseConfig = {
+      apiKey: "AIzaSyBnl6pd_m4AsypD1IPJ11FhgZQf8XFDEqw",
+      authDomain: "appz-571f4.firebaseapp.com",
+      projectId: "appz-571f4",
+      storageBucket: "appz-571f4.firebasestorage.app",
+      messagingSenderId: "709288105818",
+      appId: "1:709288105818:web:8141a1a00683d551960563",
+      measurementId: "G-K62SLNN75N"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    /********************************
+     * DEFINICIÓN TEMPRANA DE updateFrontFieldOptions
+     ********************************/
+    function updateFrontFieldOptions() {
+      const frontSelect = document.getElementById("frontField");
+      if (!frontSelect) return;
+      frontSelect.innerHTML = "";
+      if (wordFields.length > 0) {
+        wordFields.forEach(field => {
+          const opt = document.createElement("option");
+          opt.value = field.key;
+          opt.textContent = field.label;
+          frontSelect.appendChild(opt);
+        });
+      } else if (words.length > 0) {
+        Object.keys(words[0]).forEach(key => {
+          if (key !== "id" && key !== "failCount" && key !== "correctCount") {
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.textContent = key;
+            frontSelect.appendChild(opt);
+          }
+        });
+      } else {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No hay campos";
+        frontSelect.appendChild(opt);
+      }
+    }
+
+    /********************************
+     * VARIABLES GLOBALES
+     ********************************/
+    let wordFields = [];
+    let wordFieldsOrder = [];
+    let words = [];
+    let globalHistory = [];
+    let settings = {
+      keyMostrar: "m",
+      keyCorrect: "k",
+      keyIncorrect: "l",
+      problemThreshold: 2,
+      audioEnabled: true,
+      feedbackDelay: 500,
+      darkTheme: false,
+      notificationsEnabled: true,
+      newWordsCount: 10
+    };
+
+    let practiceSessionWords = [];
+    let currentIndex = 0, correctCount = 0, sessionPracticed = 0;
+    let responses = [];
+    let currentStreak = 0;
+    let achievementThreshold = 5;
+    let weightedMode = false;
+    let selectedColor = "#000000";
+    let newWords = [];
+    let currentEditIndex = null;
+    let currentSortField = 'failCount';
+    let currentSortOrder = 'desc';
+    let draggedIndex = null;
+
+    /********************************
+     * MANEJO DE TABS EN "GESTIONAR"
+     ********************************/
+    const tabPalabras = document.getElementById("tabPalabras");
+    const tabCampos = document.getElementById("tabCampos");
+    const tabPalabrasContent = document.getElementById("tabPalabrasContent");
+    const tabCamposContent = document.getElementById("tabCamposContent");
+
+    tabPalabras.addEventListener("click", () => {
+      tabPalabrasContent.classList.add("active");
+      tabCamposContent.classList.remove("active");
+    });
+    tabCampos.addEventListener("click", () => {
+      tabCamposContent.classList.add("active");
+      tabPalabrasContent.classList.remove("active");
+    });
+
+    /********************************
+     * AUTENTICACIÓN
+     ********************************/
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPassword = document.getElementById("loginPassword");
+    const btnRegister = document.getElementById("btnRegister");
+    const btnLogin = document.getElementById("btnLogin");
+    const btnLogout = document.getElementById("btnLogout");
+    const loginStatus = document.getElementById("loginStatus");
+
+    btnRegister.addEventListener("click", async () => {
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
+        loginStatus.textContent = "Registrado: " + cred.user.email;
+      } catch (err) {
+        loginStatus.textContent = "Error registro: " + err.message;
+      }
+    });
+    btnLogin.addEventListener("click", async () => {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
+        loginStatus.textContent = "Sesión iniciada: " + cred.user.email;
+      } catch (err) {
+        loginStatus.textContent = "Error login: " + err.message;
+      }
+    });
+    btnLogout.addEventListener("click", async () => {
+      await signOut(auth);
+      localStorage.clear();
+      words = [];
+      wordFields = [];
+      wordFieldsOrder = [];
+      globalHistory = [];
+      practiceSessionWords = [];
+      currentIndex = 0;
+      correctCount = 0;
+      sessionPracticed = 0;
+      responses = [];
+      currentStreak = 0;
+      loginStatus.textContent = "Sesión cerrada.";
+      const user = auth.currentUser;
+      if (user) {
+        const docRef = doc(db, "users", user.uid);
+        await setDoc(docRef, { words: [], wordFieldsOrder: [] }, { merge: true });
+        const colRef = collection(db, "users", user.uid, "globalHistory");
+        const snapshot = await getDocs(colRef);
+        snapshot.forEach(docSnap => deleteDoc(docSnap.ref));
+      }
+      location.reload();
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      console.log("onAuthStateChanged:", user);
+      if (user) {
+        loginStatus.textContent = `Logueado como: ${user.email}`;
+        btnLogout.style.display = "inline-block";
+        subscribeWordsFromFirestore();
+        subscribeGlobalHistory();
+      } else {
+        btnLogout.style.display = "none";
+        loginStatus.textContent = "No hay usuario logueado";
+        words = [];
+        wordFields = [];
+        wordFieldsOrder = [];
+        globalHistory = [];
+        renderizarTabla();
+        generarFormularioDinamico([]);
+        updateFieldsList();
+        updateFrontFieldOptions();
+      }
+    });
+
+    /********************************
+     * SUSCRIPCIONES EN TIEMPO REAL
+     ********************************/
+    function subscribeWordsFromFirestore() {
+      const user = auth.currentUser;
+      if (!user) return;
+      const docRef = doc(db, "users", user.uid);
+      onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.words) {
+            words = data.words.map(w => {
+              if (!w.id) w.id = Date.now() + Math.random().toString(16).slice(2);
+              w.failCount = w.failCount || 0;
+              w.correctCount = w.correctCount || 0;
+              return w;
+            });
+            wordFieldsOrder = data.wordFieldsOrder || [];
+            if (wordFieldsOrder.length > 0) {
+              wordFields = wordFieldsOrder.map(key => {
+                const field = wordFields.find(f => f.key === key) || { key, label: key, type: "text", required: false };
+                return field;
+              });
+            } else if (words.length > 0) {
+              const sampleWord = words[0];
+              const excludedFields = ["id", "failCount", "correctCount"];
+              const inferredFields = Object.keys(sampleWord)
+                .filter(key => !excludedFields.includes(key));
+              wordFieldsOrder = inferredFields;
+              wordFields = inferredFields.map(key => ({
+                key: key,
+                label: key,
+                type: "text",
+                required: false
+              }));
+            }
+            localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+            localStorage.setItem("wordFields", JSON.stringify(wordFields));
+            generarFormularioDinamico(wordFields);
+            updateFieldsList();
+            updateFrontFieldOptions();
+            renderizarTabla();
+          }
+        }
+      }, (err) => console.error("Error suscribiendo 'words':", err));
+    }
+
+    function subscribeGlobalHistory() {
+      const user = auth.currentUser;
+      if (!user) return;
+      const colRef = collection(db, "users", user.uid, "globalHistory");
+      onSnapshotQuery(colRef, (snapshot) => {
+        globalHistory = [];
+        snapshot.forEach(docSnap => {
+          globalHistory.push(docSnap.data());
+        });
+        console.log("Historial global recibido:", globalHistory);
+        renderGlobalStats();
+      }, (err) => console.error("Error suscribiendo 'globalHistory':", err));
+    }
+
+    /********************************
+     * GUARDAR/LEER PALABRAS Y CAMPOS
+     ********************************/
+    async function saveWordsToFirestore() {
+      const user = auth.currentUser;
+      if (!user) return;
+      try {
+        const docRef = doc(db, "users", user.uid);
+        const sanitizedWords = words.map(word => {
+          const newWord = {};
+          for (let key in word) {
+            newWord[key] = (word[key] === undefined) ? null : word[key];
+          }
+          return newWord;
+        });
+        await setDoc(docRef, { words: sanitizedWords, wordFieldsOrder }, { merge: true });
+        console.log("Palabras y orden de campos guardados");
+      } catch (err) {
+        console.error("Error guardando:", err);
+      }
+    }
+
+    async function saveFieldsOrderToFirestore() {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Debes estar logueado para guardar los cambios.");
+        return;
+      }
+      try {
+        const docRef = doc(db, "users", user.uid);
+        await setDoc(docRef, { wordFieldsOrder }, { merge: true });
+        localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+        localStorage.setItem("wordFields", JSON.stringify(wordFields));
+        alert("Orden de campos guardado correctamente en Firestore.");
+      } catch (err) {
+        console.error("Error guardando el orden de campos en Firestore:", err);
+        alert("Error al guardar el orden de campos: " + err.message);
+      }
+    }
+
+    function saveWords() {
+      localStorage.setItem("words", JSON.stringify(words));
+      saveWordsToFirestore();
+    }
+
+    function loadWords() {
+      const stored = localStorage.getItem("words");
+      if (stored) {
+        words = JSON.parse(stored);
+        words.forEach(w => {
+          if (!w.id) w.id = Date.now() + Math.random().toString(16).slice(2);
+          w.failCount = w.failCount || 0;
+          w.correctCount = w.correctCount || 0;
+        });
+      }
+    }
+
+    /********************************
+     * MENÚ LATERAL Y SECCIONES
+     ********************************/
+    const menuToggleBtn = document.getElementById("menuToggle");
+    const sideNav = document.getElementById("sideNav");
+    const mainContent = document.getElementById("mainContent");
+
+    menuToggleBtn.addEventListener("click", () => {
+      sideNav.classList.toggle("open");
+      mainContent.style.marginRight = sideNav.classList.contains("open") ? "240px" : "0";
+    });
+
+    function showSection(section) {
+      sideNav.classList.remove("open");
+      mainContent.style.marginRight = "0";
+      const sections = [
+        "sectionPracticar",
+        "sectionGestionar",
+        "sectionEstadisticas",
+        "sectionNuevas",
+        "sectionAjustes",
+        "sectionLogin"
+      ];
+      sections.forEach(id => document.getElementById(id).classList.remove("active"));
+      document.getElementById(section).classList.add("active");
+    }
+    document.getElementById("btnPracticar").addEventListener("click", () => showSection("sectionPracticar"));
+    document.getElementById("btnGestionar").addEventListener("click", () => showSection("sectionGestionar"));
+    document.getElementById("btnEstadisticas").addEventListener("click", () => {
+      showSection("sectionEstadisticas");
+      renderGlobalStats();
+      renderSessionStats();
+    });
+    document.getElementById("btnNuevas").addEventListener("click", () => {
+      renderNewWordsTable();
+      showSection("sectionNuevas");
+    });
+    document.getElementById("btnAjustes").addEventListener("click", () => showSection("sectionAjustes"));
+    document.getElementById("btnLoginSection").addEventListener("click", () => showSection("sectionLogin"));
+
+    /********************************
+     * AJUSTES
+     ********************************/
+    function applyTheme() {
+      if (document.getElementById("darkTheme").checked) {
+        document.body.classList.add("dark-theme");
+        settings.darkTheme = true;
+      } else {
+        document.body.classList.remove("dark-theme");
+        settings.darkTheme = false;
+      }
+      saveSettings();
+    }
+    function saveSettings() {
+      localStorage.setItem("settings", JSON.stringify(settings));
+    }
+    function loadSettings() {
+      const stored = localStorage.getItem("settings");
+      if (stored) {
+        settings = JSON.parse(stored);
+        document.getElementById("keyMostrar").value = settings.keyMostrar;
+        document.getElementById("keyCorrect").value = settings.keyCorrect;
+        document.getElementById("keyIncorrect").value = settings.keyIncorrect;
+        document.getElementById("problemThreshold").value = settings.problemThreshold;
+        document.getElementById("feedbackDelay").value = settings.feedbackDelay;
+        document.getElementById("audioEnabled").value = settings.audioEnabled ? "true" : "false";
+        document.getElementById("darkTheme").checked = settings.darkTheme;
+        document.getElementById("notificationsEnabled").checked = settings.notificationsEnabled;
+        document.getElementById("newWordsCount").value = settings.newWordsCount;
+        document.getElementById("newWordsCountDisplay").textContent = settings.newWordsCount;
+        applyTheme();
+      }
+    }
+    const settingsForm = document.getElementById("settingsForm");
+    settingsForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      settings.keyMostrar = document.getElementById("keyMostrar").value;
+      settings.keyCorrect = document.getElementById("keyCorrect").value;
+      settings.keyIncorrect = document.getElementById("keyIncorrect").value;
+      settings.problemThreshold = parseInt(document.getElementById("problemThreshold").value);
+      settings.feedbackDelay = parseInt(document.getElementById("feedbackDelay").value);
+      settings.audioEnabled = (document.getElementById("audioEnabled").value === "true");
+      settings.darkTheme = document.getElementById("darkTheme").checked;
+      settings.notificationsEnabled = document.getElementById("notificationsEnabled").checked;
+      settings.newWordsCount = parseInt(document.getElementById("newWordsCount").value);
+      document.getElementById("newWordsCountDisplay").textContent = settings.newWordsCount;
+      saveSettings();
+      applyTheme();
+      alert("Ajustes guardados.");
+    });
+    document.getElementById("resetAll").addEventListener("click", () => {
+      if (confirm("Esto borrará todos tus datos y ajustes. ¿Estás seguro?")) {
+        localStorage.clear();
+        words = [];
+        const user = auth.currentUser;
+        if (user) {
+          const docRef = doc(db, "users", user.uid);
+          setDoc(docRef, { words: [], wordFieldsOrder: [] }, { merge: true })
+            .then(() => { location.reload(); })
+            .catch(err => {
+              console.error("Error al resetear datos:", err);
+              location.reload();
+            });
+        } else {
+          location.reload();
+        }
+      }
+    });
+    document.getElementById("resetStats").addEventListener("click", async () => {
+      if (confirm("¿Seguro que deseas resetear las estadísticas?")) {
+        localStorage.removeItem("sessionHistory");
+        words.forEach(w => { w.failCount = 0; w.correctCount = 0; });
+        saveWords();
+        const user = auth.currentUser;
+        if (user) {
+          const colRef = collection(db, "users", user.uid, "globalHistory");
+          const snapshot = await getDocs(colRef);
+          snapshot.forEach(docSnap => {
+            deleteDoc(docSnap.ref);
+          });
+        }
+        alert("Estadísticas reiniciadas.");
+      }
+    });
+
+    /********************************
+     * SINCRONIZAR ESTADÍSTICAS CON HISTORIAL GLOBAL
+     ********************************/
+    async function syncStatsWithGlobalHistory() {
+      const user = auth.currentUser;
+      if (!user) return;
+      const colRef = collection(db, "users", user.uid, "globalHistory");
+      const snapshot = await getDocs(colRef);
+      let syncMap = {};
+      snapshot.forEach(docSnap => {
+        const entry = docSnap.data();
+        const id = entry.id;
+        if (!syncMap[id]) {
+          syncMap[id] = { id: id, campoFrontal: entry.campoFrontal, failCount: 0, correctCount: 0 };
+        }
+        if (entry.respuesta === "Incorrecto") {
+          syncMap[id].failCount++;
+        } else if (entry.respuesta === "Correcto") {
+          syncMap[id].correctCount++;
+        }
+      });
+      words.forEach(w => {
+        if (syncMap[w.id]) {
+          w.failCount = syncMap[w.id].failCount;
+          w.correctCount = syncMap[w.id].correctCount;
+        }
+      });
+      saveWords();
+      console.log("Sincronización completa. Estadísticas actualizadas.");
+    }
+
+    /********************************
+     * MODO PRACTICAR
+     ********************************/
+    const btnStartPractice = document.getElementById("startPractice");
+    const flashcardDiv = document.getElementById("flashcard");
+    const detailsDiv = document.getElementById("details");
+    const btnMostrar = document.getElementById("btnMostrar");
+    const btnBien = document.getElementById("btnBien");
+    const btnMal = document.getElementById("btnMal");
+    const btnFinishSession = document.getElementById("finishSession");
+    const btnResetSession = document.getElementById("resetSession");
+    const progressBar = document.getElementById("progressBar");
+    const progressCount = document.getElementById("progressCount");
+
+    btnStartPractice.addEventListener("click", async () => {
+      await startPracticeSession();
+    });
+
+    async function startPracticeSession() {
+      const mode = document.getElementById("practiceMode").value;
+      if (mode === "dificultad") {
+         await syncStatsWithGlobalHistory();
+      }
+      currentIndex = 0;
+      correctCount = 0;
+      sessionPracticed = 0;
+      responses = [];
+      currentStreak = 0;
+      updateProgress();
+
+      if (mode === "normal") {
+        weightedMode = false;
+        practiceSessionWords = [...words];
+      } else if (mode === "aleatorio") {
+        weightedMode = false;
+        practiceSessionWords = shuffleArray([...words]);
+      } else if (mode === "dificultad") {
+        weightedMode = true;
+        let filtered = words.filter(card => {
+          let grade = obtenerCalificacion(card);
+          return grade === "C" || grade === "D" || grade === "F";
+        });
+        if (filtered.length === 0) {
+          alert("No hay tarjetas para repasar.");
+          return;
+        }
+        practiceSessionWords = weightedShuffle(filtered);
+      }
+      saveSessionInProgress();
+      showCard();
+    }
+
+    function showCard() {
+      updateProgress();
+      if (currentIndex >= practiceSessionWords.length) {
+        return;
+      }
+      btnBien.style.border = "";
+      btnMal.style.border = "";
+      const card = practiceSessionWords[currentIndex];
+      flashcardDiv.style.borderLeft = "10px solid " + obtenerColor(card);
+      flashcardDiv.style.borderRight = "10px solid " + obtenerColor(card);
+      flashcardDiv.style.borderTop = "4px solid transparent";
+      flashcardDiv.style.borderBottom = "4px solid transparent";
+      const frontField = document.getElementById("frontField").value;
+      flashcardDiv.textContent = card[frontField] || "?";
+      if (responses[currentIndex]) {
+        detailsDiv.innerHTML = renderCardDetails(card, frontField);
+        detailsDiv.classList.remove("hidden");
+        btnMostrar.classList.add("hidden");
+        btnBien.classList.add("hidden");
+        btnMal.classList.add("hidden");
+      } else {
+        detailsDiv.classList.add("hidden");
+        btnMostrar.classList.remove("hidden");
+        btnBien.classList.add("hidden");
+        btnMal.classList.add("hidden");
+      }
+    }
+
+    function updateProgress() {
+      if (practiceSessionWords.length > 0) {
+        let pct = (currentIndex / practiceSessionWords.length) * 100;
+        progressBar.style.width = `${pct}%`;
+        progressCount.textContent = `Progreso: ${currentIndex} / ${practiceSessionWords.length}`;
+      } else {
+        progressBar.style.width = "0%";
+        progressCount.textContent = "";
+      }
+    }
+
+    btnMostrar.addEventListener("click", () => {
+      if (currentIndex < practiceSessionWords.length) {
+        const card = practiceSessionWords[currentIndex];
+        const frontField = document.getElementById("frontField").value;
+        detailsDiv.innerHTML = renderCardDetails(card, frontField);
+        detailsDiv.classList.remove("hidden");
+        btnMostrar.classList.add("hidden");
+        btnBien.classList.remove("hidden");
+        btnMal.classList.remove("hidden");
+      }
+    });
+
+    async function responder(correcto) {
+      if (currentIndex >= practiceSessionWords.length) return;
+      if (responses[currentIndex]) return;
+      const card = practiceSessionWords[currentIndex];
+      const frontField = document.getElementById("frontField").value;
+      detailsDiv.innerHTML = renderCardDetails(card, frontField);
+      detailsDiv.classList.remove("hidden");
+      sessionPracticed++;
+      let respText = "";
+      if (correcto) {
+        correctCount++;
+        respText = "Correcto";
+        responses[currentIndex] = "Correcto";
+        flashcardDiv.style.borderTop = "4px solid green";
+        flashcardDiv.style.borderBottom = "4px solid green";
+        btnBien.style.border = "2px solid green";
+        currentStreak++;
+        card.correctCount = (card.correctCount || 0) + 1;
+      } else {
+        respText = "Incorrecto";
+        card.failCount = (card.failCount || 0) + 1;
+        responses[currentIndex] = "Incorrecto";
+        flashcardDiv.style.borderTop = "4px solid red";
+        flashcardDiv.style.borderBottom = "4px solid red";
+        btnMal.style.border = "2px solid red";
+        currentStreak = 0;
+      }
+      if (!card.id) {
+        card.id = Date.now() + Math.random().toString(16).slice(2);
+      }
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const frontFieldValue = card[document.getElementById("frontField").value] || "";
+          await addDoc(collection(db, "users", user.uid, "globalHistory"), {
+            date: new Date().toISOString(),
+            id: card.id,
+            campoFrontal: frontFieldValue,
+            pinyin: card.pinyin || "",
+            respuesta: respText
+          });
+        } catch (e) {
+          console.error("Error en globalHistory:", e);
+        }
+      }
+      saveWords();
+      await syncStatsWithGlobalHistory();
+
+      setTimeout(() => {
+        flashcardDiv.style.borderTop = "4px solid transparent";
+        flashcardDiv.style.borderBottom = "4px solid transparent";
+        currentIndex++;
+        showCard();
+      }, settings.feedbackDelay);
+    }
+
+    btnBien.addEventListener("click", () => responder(true));
+    btnMal.addEventListener("click", () => responder(false));
+
+    document.addEventListener("keydown", (e) => {
+      if (document.getElementById("sectionPracticar").classList.contains("active")) {
+        if (!responses[currentIndex] && !btnMostrar.classList.contains("hidden")) {
+          if (e.key === settings.keyMostrar) {
+            btnMostrar.click();
+            return;
+          }
+        }
+        if (!responses[currentIndex] && !btnBien.classList.contains("hidden")) {
+          if (e.key === settings.keyCorrect) responder(true);
+          if (e.key === settings.keyIncorrect) responder(false);
+        }
+      }
+    });
+
+    btnFinishSession.addEventListener("click", () => {
+      let sessionData = {
+        date: new Date().toISOString(),
+        total: sessionPracticed,
+        correct: correctCount,
+        incorrect: sessionPracticed - correctCount,
+        percentage: sessionPracticed ? ((correctCount / sessionPracticed) * 100).toFixed(2) : "0"
+      };
+      let history = JSON.parse(localStorage.getItem("sessionHistory")) || [];
+      history.push(sessionData);
+      localStorage.setItem("sessionHistory", JSON.stringify(history));
+      clearSessionInProgress();
+      practiceSessionWords = [];
+      currentIndex = 0;
+      correctCount = 0;
+      sessionPracticed = 0;
+      responses = [];
+      currentStreak = 0;
+      alert("Sesión finalizada.");
+      showSection("sectionPracticar");
+    });
+
+    btnResetSession.addEventListener("click", () => {
+      currentIndex = 0;
+      correctCount = 0;
+      sessionPracticed = 0;
+      responses = [];
+      currentStreak = 0;
+      flashcardDiv.classList.remove("hidden");
+      updateProgress();
+      showCard();
+      saveSessionInProgress();
+    });
+
+    flashcardDiv.addEventListener("click", () => {
+      if (currentIndex < practiceSessionWords.length && settings.audioEnabled) {
+        const card = practiceSessionWords[currentIndex];
+        speak(card.pinyin);
+      }
+    });
+
+    /********************************
+     * SESIÓN EN PROGRESO
+     ********************************/
+    function saveSessionInProgress() {
+      const data = {
+        practiceSessionWords,
+        currentIndex,
+        correctCount,
+        sessionPracticed,
+        responses,
+        currentStreak
+      };
+      localStorage.setItem("sessionInProgress", JSON.stringify(data));
+    }
+    function loadSessionInProgress() {
+      const stored = localStorage.getItem("sessionInProgress");
+      if (!stored) return false;
+      try {
+        const data = JSON.parse(stored);
+        practiceSessionWords = data.practiceSessionWords || [];
+        currentIndex = data.currentIndex || 0;
+        correctCount = data.correctCount || 0;
+        sessionPracticed = data.sessionPracticed || 0;
+        responses = data.responses || [];
+        currentStreak = data.currentStreak || 0;
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    function clearSessionInProgress() {
+      localStorage.removeItem("sessionInProgress");
+    }
+
+    /********************************
+     * NUEVAS PALABRAS
+     ********************************/
+    function renderNewWordsFromArray() {
+      const newWordsTable = document.getElementById("newWordsTable");
+      const thead = newWordsTable.querySelector("thead");
+      const tbody = newWordsTable.querySelector("tbody");
+
+      thead.innerHTML = "";
+      tbody.innerHTML = "";
+
+      if (wordFields && wordFields.length > 0) {
+        const headerRow = document.createElement("tr");
+        wordFields.forEach(field => {
+          const th = document.createElement("th");
+          th.textContent = field.label;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+      } else {
+        const headerRow = document.createElement("tr");
+        ["Campo 1", "Campo 2", "Campo 3"].forEach(label => {
+          const th = document.createElement("th");
+          th.textContent = label;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+      }
+
+      newWords.forEach(w => {
+        const row = document.createElement("tr");
+        wordFields.forEach((field, colIndex) => {
+          const cell = document.createElement("td");
+          cell.textContent = w[field.key] || "";
+          
+          if (colIndex === 0) {
+            cell.addEventListener("click", () => {
+              const currentRow = cell.parentElement;
+              for (let i = 1; i < currentRow.children.length; i++) {
+                currentRow.children[i].style.backgroundColor = "";
+                currentRow.children[i].style.color = "";
+              }
+            });
+          } else {
+            cell.addEventListener("click", () => {
+              if (cell.style.backgroundColor === selectedColor) {
+                cell.style.backgroundColor = "";
+                cell.style.color = "";
+              } else {
+                const rows = document.querySelectorAll("#newWordsTable tbody tr");
+                rows.forEach(r => {
+                  const c = r.children[colIndex];
+                  c.style.backgroundColor = selectedColor;
+                  c.style.color = "black";
+                });
+              }
+            });
+          }
+          row.appendChild(cell);
+        });
+        tbody.appendChild(row);
+      });
+    }
+    function renderNewWordsTable() {
+      const count = parseInt(document.getElementById("newWordsCount").value);
+      newWords = words.slice(-count).reverse();
+      renderNewWordsFromArray();
+    }
+    document.getElementById("btnClearHighlight").addEventListener("click", () => {
+      document.querySelectorAll("#newWordsTable td").forEach(cell => {
+        cell.style.backgroundColor = "";
+        cell.style.color = "";
+      });
+    });
+    document.getElementById("btnRandomizeNewWords").addEventListener("click", () => {
+      newWords = shuffleArray(newWords);
+      renderNewWordsFromArray();
+    });
+    document.getElementById("highlightColor").addEventListener("input", (e) => {
+      selectedColor = e.target.value;
+    });
+
+    /********************************
+     * GESTIÓN DINÁMICA DE PALABRAS (CRUD) + MODAL
+     ********************************/
+    function generarFormularioDinamico(fields) {
+      const form = document.getElementById("wordForm");
+      form.innerHTML = "";
+      if (fields.length === 0) {
+        form.innerHTML = "<p>No hay campos definidos. Importa un archivo o define tus campos manualmente.</p>";
+        return;
+      }
+      fields.forEach(field => {
+        const div = document.createElement("div");
+        const label = document.createElement("label");
+        label.textContent = field.label;
+        label.setAttribute("for", field.key);
+        div.appendChild(label);
+        let input;
+        if (field.type === "textarea") {
+          input = document.createElement("textarea");
+        } else {
+          input = document.createElement("input");
+          input.type = field.type;
+        }
+        input.id = field.key;
+        input.name = field.key;
+        input.placeholder = field.label;
+        if (field.required) input.required = true;
+        div.appendChild(input);
+        form.appendChild(div);
+      });
+      const submitBtn = document.createElement("button");
+      submitBtn.textContent = "Agregar Palabra";
+      submitBtn.type = "submit";
+      form.appendChild(submitBtn);
+      
+      const focusableElements = form.querySelectorAll("input, textarea, button");
+      focusableElements.forEach((elem, index) => {
+        elem.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (index < focusableElements.length - 1) {
+              focusableElements[index + 1].focus();
+            } else {
+              form.dispatchEvent(new Event("submit", {cancelable: true}));
+            }
+          }
+        });
+      });
+    }
+
+    function renderizarTabla() {
+      const tbody = document.querySelector("#wordsTable tbody");
+      const thead = document.querySelector("#wordsTable thead");
+      tbody.innerHTML = "";
+      thead.innerHTML = "";
+      
+      if (wordFieldsOrder.length > 0) {
+        const headerRow = document.createElement("tr");
+        wordFieldsOrder.forEach(key => {
+          const field = wordFields.find(f => f.key === key);
+          if (field) {
+            const th = document.createElement("th");
+            th.textContent = field.label;
+            headerRow.appendChild(th);
+          }
+        });
+        const thAcciones = document.createElement("th");
+        thAcciones.textContent = "Acciones";
+        headerRow.appendChild(thAcciones);
+        thead.appendChild(headerRow);
+      }
+      
+      words.forEach((word, index) => {
+        const row = document.createElement("tr");
+        wordFieldsOrder.forEach(key => {
+          const td = document.createElement("td");
+          td.textContent = word[key] || "";
+          row.appendChild(td);
+        });
+        if (wordFieldsOrder.length > 0) {
+          const tdAcciones = document.createElement("td");
+          const btnEdit = document.createElement("button");
+          btnEdit.textContent = "Editar";
+          btnEdit.onclick = () => editarPalabra(index);
+          const btnDelete = document.createElement("button");
+          btnDelete.textContent = "Borrar";
+          btnDelete.onclick = () => borrarPalabra(index);
+          tdAcciones.appendChild(btnEdit);
+          tdAcciones.appendChild(btnDelete);
+          row.appendChild(tdAcciones);
+        }
+        tbody.appendChild(row);
+      });
+    }
+
+    document.getElementById("wordSearch").addEventListener("input", () => {
+      const term = document.getElementById("wordSearch").value.toLowerCase();
+      if (term === "") {
+        renderizarTabla();
+        return;
+      }
+      const filtered = words.map((word, index) => ({ word, index }))
+        .filter(item => {
+          return wordFieldsOrder.some(key => 
+            String(item.word[key] || "").toLowerCase().includes(term)
+          );
+        });
+      const tbody = document.querySelector("#wordsTable tbody");
+      tbody.innerHTML = "";
+      filtered.forEach(item => {
+        const row = document.createElement("tr");
+        wordFieldsOrder.forEach(key => {
+          const td = document.createElement("td");
+          td.textContent = item.word[key] || "";
+          row.appendChild(td);
+        });
+        if (wordFieldsOrder.length > 0) {
+          const tdAcciones = document.createElement("td");
+          const btnEdit = document.createElement("button");
+          btnEdit.textContent = "Editar";
+          btnEdit.onclick = () => editarPalabra(item.index);
+          const btnDelete = document.createElement("button");
+          btnDelete.textContent = "Borrar";
+          btnDelete.onclick = () => borrarPalabra(item.index);
+          tdAcciones.appendChild(btnEdit);
+          tdAcciones.appendChild(btnDelete);
+          row.appendChild(tdAcciones);
+        }
+        tbody.appendChild(row);
+      });
+    });
+
+    document.getElementById("wordForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      let nuevaPalabra = {};
+      wordFields.forEach(field => {
+        const input = document.getElementById(field.key);
+        nuevaPalabra[field.key] = input.value;
+        input.value = "";
+      });
+      nuevaPalabra.failCount = 0;
+      nuevaPalabra.correctCount = 0;
+      if (!nuevaPalabra.id) {
+        nuevaPalabra.id = Date.now() + Math.random().toString(16).slice(2);
+      }
+      words.push(nuevaPalabra);
+      saveWords();
+      renderizarTabla();
+    });
+
+    window.editarPalabra = function(index) {
+      currentEditIndex = index;
+      const word = words[index];
+      const editDiv = document.getElementById("editFields");
+      editDiv.innerHTML = "";
+      wordFields.forEach(field => {
+        const div = document.createElement("div");
+        const label = document.createElement("label");
+        label.textContent = field.label;
+        label.setAttribute("for", "edit_" + field.key);
+        div.appendChild(label);
+        let input;
+        if (field.type === "textarea") {
+          input = document.createElement("textarea");
+        } else {
+          input = document.createElement("input");
+          input.type = field.type;
+        }
+        input.id = "edit_" + field.key;
+        input.name = field.key;
+        input.value = word[field.key] || "";
+        if (field.required) input.required = true;
+        div.appendChild(input);
+        editDiv.appendChild(div);
+      });
+      document.getElementById("editModal").style.display = "block";
+    };
+
+    window.borrarPalabra = function(index) {
+      if (confirm("¿Borrar esta palabra?")) {
+        words.splice(index, 1);
+        saveWords();
+        renderizarTabla();
+      }
+    };
+
+    document.getElementById("editWordForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (currentEditIndex === null) return;
+      wordFields.forEach(field => {
+        const input = document.getElementById("edit_" + field.key);
+        words[currentEditIndex][field.key] = input.value;
+      });
+      if (!words[currentEditIndex].id) {
+        words[currentEditIndex].id = Date.now() + Math.random().toString(16).slice(2);
+      }
+      saveWords();
+      renderizarTabla();
+      document.getElementById("editModal").style.display = "none";
+      currentEditIndex = null;
+    });
+
+    document.getElementById("closeModal").addEventListener("click", () => {
+      document.getElementById("editModal").style.display = "none";
+      currentEditIndex = null;
+    });
+
+    /********************************
+     * IMPORTAR / EXPORTAR
+     ********************************/
+    window.exportData = function() {
+      const dataStr = JSON.stringify(words, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "palabras.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    document.getElementById("exportData").addEventListener("click", window.exportData);
+
+    document.getElementById("importData").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith(".csv")) {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(results) {
+            const headers = results.meta.fields;
+            if (headers && headers.length > 0) {
+              wordFieldsOrder = headers.map(header => header.trim());
+              wordFields = headers.map(header => ({
+                key: header.trim(),
+                label: header.trim(),
+                type: "text",
+                required: false
+              }));
+              localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+              localStorage.setItem("wordFields", JSON.stringify(wordFields));
+              generarFormularioDinamico(wordFields);
+              updateFieldsList();
+              updateFrontFieldOptions();
+              results.data.forEach(row => {
+                let nuevaPalabra = {};
+                headers.forEach(header => {
+                  nuevaPalabra[header.trim()] = row[header];
+                });
+                nuevaPalabra.failCount = parseInt(nuevaPalabra.failCount) || 0;
+                nuevaPalabra.correctCount = parseInt(nuevaPalabra.correctCount) || 0;
+                if (!nuevaPalabra.id) {
+                  nuevaPalabra.id = Date.now() + Math.random().toString(16).slice(2);
+                }
+                words.push(nuevaPalabra);
+              });
+              saveWords();
+              renderizarTabla();
+              alert("Archivo CSV importado correctamente con " + headers.length + " campos.");
+            } else {
+              alert("El archivo no contiene cabeceras.");
+            }
+          },
+          error: function(err) {
+            alert("Error al leer el archivo: " + err);
+          }
+        });
+      } else if (fileName.endsWith(".json")) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (Array.isArray(data) && data.length > 0) {
+              const headers = Object.keys(data[0]).filter(key => !["id", "failCount", "correctCount"].includes(key));
+              wordFieldsOrder = headers;
+              wordFields = headers.map(header => ({
+                key: header.trim(),
+                label: header.trim(),
+                type: "text",
+                required: false
+              }));
+              localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+              localStorage.setItem("wordFields", JSON.stringify(wordFields));
+              generarFormularioDinamico(wordFields);
+              updateFieldsList();
+              updateFrontFieldOptions();
+              words = data.map(item => {
+                let newWord = { ...item };
+                newWord.failCount = parseInt(newWord.failCount) || 0;
+                newWord.correctCount = parseInt(newWord.correctCount) || 0;
+                if (!newWord.id) {
+                  newWord.id = Date.now() + Math.random().toString(16).slice(2);
+                }
+                return newWord;
+              });
+              saveWords();
+              renderizarTabla();
+              alert("Archivo JSON importado correctamente.");
+            } else {
+              alert("El JSON no contiene datos o no es un arreglo.");
+            }
+          } catch (err) {
+            alert("Error al leer el archivo JSON: " + err);
+          }
+        };
+        reader.readAsText(file);
+      } else if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            const dataArr = new Uint8Array(ev.target.result);
+            const workbook = XLSX.read(dataArr, { type: "array" });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            if (jsonData.length > 0) {
+              const headers = Object.keys(jsonData[0]).filter(key => !["id", "failCount", "correctCount"].includes(key));
+              wordFieldsOrder = headers;
+              wordFields = headers.map(header => ({
+                key: header.trim(),
+                label: header.trim(),
+                type: "text",
+                required: false
+              }));
+              localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+              localStorage.setItem("wordFields", JSON.stringify(wordFields));
+              generarFormularioDinamico(wordFields);
+              updateFieldsList();
+              updateFrontFieldOptions();
+              words = jsonData.map(item => {
+                let newWord = { ...item };
+                newWord.failCount = parseInt(newWord.failCount) || 0;
+                newWord.correctCount = parseInt(newWord.correctCount) || 0;
+                if (!newWord.id) {
+                  newWord.id = Date.now() + Math.random().toString(16).slice(2);
+                }
+                return newWord;
+              });
+              saveWords();
+              renderizarTabla();
+              alert("Archivo Excel importado correctamente.");
+            } else {
+              alert("El archivo Excel no contiene datos.");
+            }
+          } catch (err) {
+            alert("Error al leer el archivo Excel: " + err);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        alert("Formato no soportado (.json, .csv, .xls, .xlsx).");
+      }
+      e.target.value = "";
+    });
+
+    // NUEVA FUNCIÓN: SUMAR AL ARCHIVO
+    document.getElementById("appendData").addEventListener("click", () => {
+      document.getElementById("appendFile").click();
+    });
+
+    document.getElementById("appendFile").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith(".csv")) {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(results) {
+            const headers = results.meta.fields;
+            if (headers && headers.length > 0) {
+              if (wordFields.length > 0) {
+                let fileHeaders = headers.map(header => header.trim());
+                let allMatch = wordFieldsOrder.every(key => fileHeaders.includes(key));
+                if (!allMatch) {
+                  alert("Los encabezados del archivo CSV no coinciden con la estructura actual.");
+                  return;
+                }
+              } else {
+                wordFieldsOrder = headers.map(header => header.trim());
+                wordFields = headers.map(header => ({
+                  key: header.trim(),
+                  label: header.trim(),
+                  type: "text",
+                  required: false
+                }));
+                localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+                localStorage.setItem("wordFields", JSON.stringify(wordFields));
+                generarFormularioDinamico(wordFields);
+                updateFieldsList();
+                updateFrontFieldOptions();
+              }
+              results.data.forEach(row => {
+                let nuevaPalabra = {};
+                headers.forEach(header => {
+                  nuevaPalabra[header.trim()] = row[header];
+                });
+                nuevaPalabra.failCount = parseInt(nuevaPalabra.failCount) || 0;
+                nuevaPalabra.correctCount = parseInt(nuevaPalabra.correctCount) || 0;
+                if (!nuevaPalabra.id) {
+                  nuevaPalabra.id = Date.now() + Math.random().toString(16).slice(2);
+                }
+                words.push(nuevaPalabra);
+              });
+              saveWords();
+              renderizarTabla();
+              alert("Archivo CSV sumado correctamente.");
+            } else {
+              alert("El archivo no contiene cabeceras.");
+            }
+          },
+          error: function(err) {
+            alert("Error al leer el archivo: " + err);
+          }
+        });
+      } else if (fileName.endsWith(".json")) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (Array.isArray(data) && data.length > 0) {
+              let headers = Object.keys(data[0]).filter(key => !["id", "failCount", "correctCount"].includes(key));
+              if (wordFields.length > 0) {
+                let fileHeaders = headers.map(h => h.trim());
+                let allMatch = wordFieldsOrder.every(key => fileHeaders.includes(key));
+                if (!allMatch) {
+                  alert("Los encabezados del archivo JSON no coinciden con la estructura actual.");
+                  return;
+                }
+              } else {
+                wordFieldsOrder = headers;
+                wordFields = headers.map(header => ({
+                  key: header.trim(),
+                  label: header.trim(),
+                  type: "text",
+                  required: false
+                }));
+                localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+                localStorage.setItem("wordFields", JSON.stringify(wordFields));
+                generarFormularioDinamico(wordFields);
+                updateFieldsList();
+                updateFrontFieldOptions();
+              }
+              data.forEach(item => {
+                let newWord = { ...item };
+                newWord.failCount = parseInt(newWord.failCount) || 0;
+                newWord.correctCount = parseInt(newWord.correctCount) || 0;
+                if (!newWord.id) {
+                  newWord.id = Date.now() + Math.random().toString(16).slice(2);
+                }
+                words.push(newWord);
+              });
+              saveWords();
+              renderizarTabla();
+              alert("Archivo JSON sumado correctamente.");
+            } else {
+              alert("El JSON no contiene datos o no es un arreglo.");
+            }
+          } catch (err) {
+            alert("Error al leer el archivo JSON: " + err);
+          }
+        };
+        reader.readAsText(file);
+      } else if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            const dataArr = new Uint8Array(ev.target.result);
+            const workbook = XLSX.read(dataArr, { type: "array" });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            if (jsonData.length > 0) {
+              let headers = Object.keys(jsonData[0]).filter(key => !["id", "failCount", "correctCount"].includes(key));
+              if (wordFields.length > 0) {
+                let fileHeaders = headers.map(h => h.trim());
+                let allMatch = wordFieldsOrder.every(key => fileHeaders.includes(key));
+                if (!allMatch) {
+                  alert("Los encabezados del archivo Excel no coinciden con la estructura actual.");
+                  return;
+                }
+              } else {
+                wordFieldsOrder = headers;
+                wordFields = headers.map(header => ({
+                  key: header.trim(),
+                  label: header.trim(),
+                  type: "text",
+                  required: false
+                }));
+                localStorage.setItem("wordFieldsOrder", JSON.stringify(wordFieldsOrder));
+                localStorage.setItem("wordFields", JSON.stringify(wordFields));
+                generarFormularioDinamico(wordFields);
+                updateFieldsList();
+                updateFrontFieldOptions();
+              }
+              jsonData.forEach(item => {
+                let newWord = { ...item };
+                newWord.failCount = parseInt(newWord.failCount) || 0;
+                newWord.correctCount = parseInt(newWord.correctCount) || 0;
+                if (!newWord.id) {
+                  newWord.id = Date.now() + Math.random().toString(16).slice(2);
+                }
+                words.push(newWord);
+              });
+              saveWords();
+              renderizarTabla();
+              alert("Archivo Excel sumado correctamente.");
+            } else {
+              alert("El archivo Excel no contiene datos.");
+            }
+          } catch (err) {
+            alert("Error al leer el archivo Excel: " + err);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        alert("Formato no soportado (.json, .csv, .xls, .xlsx).");
+      }
+      e.target.value = "";
+    });
+
+    /********************************
+     * GESTIÓN DE CAMPOS CON DRAG AND DROP
+     ********************************/
+    function updateFieldsList() {
+      const fieldsList = document.getElementById("fieldsList");
+      fieldsList.innerHTML = "";
+      wordFields.forEach((field, index) => {
+        const li = document.createElement("li");
+        li.textContent = `${field.label} (${field.key}) - ${field.type} - ${field.required ? "Requerido" : "Opcional"}`;
+        li.setAttribute("draggable", "true");
+        li.setAttribute("data-index", index);
+        li.addEventListener("dragstart", handleDragStart);
+        li.addEventListener("dragover", handleDragOver);
+        li.addEventListener("drop", handleDrop);
+        const btnRemove = document.createElement("button");
+        btnRemove.textContent = "Eliminar";
+        btnRemove.onclick = () => {
+          wordFields.splice(index, 1);
+          wordFieldsOrder = wordFieldsOrder.filter(key => key !== field.key);
+          updateFieldsList();
+          generarFormularioDinamico(wordFields);
+          updateFrontFieldOptions();
+          renderizarTabla();
+        };
+        li.appendChild(btnRemove);
+        fieldsList.appendChild(li);
+      });
+    }
+
+    function handleDragStart(e) {
+      draggedIndex = parseInt(e.target.getAttribute("data-index"));
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", draggedIndex);
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      const targetIndex = parseInt(e.target.getAttribute("data-index"));
+      if (draggedIndex === null || targetIndex === draggedIndex) return;
+      const [movedField] = wordFieldsOrder.splice(draggedIndex, 1);
+      wordFieldsOrder.splice(targetIndex, 0, movedField);
+      wordFields = wordFieldsOrder.map(key => wordFields.find(f => f.key === key));
+      updateFieldsList();
+      renderizarTabla();
+      draggedIndex = null;
+    }
+
+    document.getElementById("saveFieldsOrder").addEventListener("click", () => {
+      saveFieldsOrderToFirestore();
+    });
+
+    document.getElementById("fieldsForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const key = document.getElementById("fieldKey").value.trim();
+      const label = document.getElementById("fieldLabel").value.trim();
+      const type = document.getElementById("fieldType").value;
+      const required = document.getElementById("fieldRequired").checked;
+      if (key === "" || label === "") {
+        alert("Por favor, ingresa todos los datos.");
+        return;
+      }
+      if (key.indexOf(" ") >= 0) {
+        alert("La clave no debe contener espacios.");
+        return;
+      }
+      if (wordFields.some(f => f.key === key)) {
+        alert("Ya existe un campo con esa clave.");
+        return;
+      }
+      const newField = { key, label, type, required };
+      wordFields.push(newField);
+      wordFieldsOrder.push(key);
+      updateFieldsList();
+      generarFormularioDinamico(wordFields);
+      updateFrontFieldOptions();
+      renderizarTabla();
+      document.getElementById("fieldsForm").reset();
+    });
+
+    function loadCustomFields() {
+      const storedOrder = localStorage.getItem("wordFieldsOrder");
+      if (storedOrder) {
+        wordFieldsOrder = JSON.parse(storedOrder);
+        const storedFields = localStorage.getItem("wordFields");
+        if (storedFields) {
+          const fieldsMap = JSON.parse(storedFields).reduce((map, field) => {
+            map[field.key] = field;
+            return map;
+          }, {});
+          wordFields = wordFieldsOrder.map(key => fieldsMap[key] || { key, label: key, type: "text", required: false });
+        }
+        generarFormularioDinamico(wordFields);
+        updateFieldsList();
+        updateFrontFieldOptions();
+      }
+    }
+
+    /********************************
+     * ESTADÍSTICAS GLOBALES
+     ********************************/
+    function obtenerColor(card) {
+      const fallos = card.failCount || 0;
+      const aciertos = card.correctCount || 0;
+      const total = fallos + aciertos;
+      if (total === 0) return "#FFFFFF";
+      const porcentajeAciertos = (aciertos / total) * 100;
+      if (porcentajeAciertos >= 90) return "#4CAF50";
+      else if (porcentajeAciertos >= 80) return "#8BC34A";
+      else if (porcentajeAciertos >= 70) return "#FFEB3B";
+      else if (porcentajeAciertos >= 60) return "#FF9800";
+      else return "#F44336";
+    }
+
+    function obtenerCalificacion(card) {
+      const fallos = card.failCount || 0;
+      const aciertos = card.correctCount || 0;
+      const total = fallos + aciertos;
+      if (total === 0) return "-";
+      const porcentajeAciertos = (aciertos / total) * 100;
+      if (porcentajeAciertos >= 90) return "A";
+      else if (porcentajeAciertos >= 80) return "B";
+      else if (porcentajeAciertos >= 70) return "C";
+      else if (porcentajeAciertos >= 60) return "D";
+      else return "F";
+    }
+
+    function renderGlobalStats() {
+      let statsMap = {};
+      globalHistory.forEach(entry => {
+        const id = entry.id;
+        if (!statsMap[id]) {
+          statsMap[id] = { id: id, campoFrontal: entry.campoFrontal, failCount: 0, correctCount: 0 };
+        }
+        if (entry.respuesta === "Incorrecto") {
+          statsMap[id].failCount++;
+        } else if (entry.respuesta === "Correcto") {
+          statsMap[id].correctCount++;
+        }
+      });
+      let statsArray = Object.values(statsMap);
+      if (statsArray.length === 0) {
+        document.getElementById("globalStats").textContent = "No hay estadísticas globales disponibles.";
+        document.querySelector("#failTable tbody").innerHTML = "";
+        return;
+      }
+      statsArray.forEach(obj => {
+        obj.total = obj.failCount + obj.correctCount;
+        obj.accuracy = obj.total > 0 ? ((obj.correctCount / obj.total) * 100).toFixed(2) + "%" : "0%";
+        obj.calificacion = obj.total > 0 ? obtenerCalificacion(obj) : "-";
+      });
+      statsArray.sort((a, b) => {
+        let diff = 0;
+        if (a[currentSortField] < b[currentSortField]) diff = -1;
+        else if (a[currentSortField] > b[currentSortField]) diff = 1;
+        return currentSortOrder === 'asc' ? diff : -diff;
+      });
+      document.getElementById("globalStats").textContent = `Total de palabras: ${words.length}`;
+      const tbody = document.querySelector("#failTable tbody");
+      tbody.innerHTML = "";
+      statsArray.forEach(obj => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${obj.campoFrontal}</td>
+                         <td>${obj.failCount}</td>
+                         <td>${obj.correctCount}</td>
+                         <td>${obj.total}</td>
+                         <td style="background-color: ${obtenerColor(obj)}">${obj.accuracy}</td>
+                         <td style="background-color: ${obtenerColor(obj)}">${obj.calificacion}</td>
+                         <td><button onclick="resetStatsForWord('${obj.id}')">Resetear</button></td>`;
+        tbody.appendChild(row);
+      });
+    }
+
+    function initGlobalStatsSorting() {
+      const headers = document.querySelectorAll("#failTable thead th");
+      headers.forEach(th => {
+        th.addEventListener("click", () => {
+          const field = th.getAttribute("data-field");
+          if (currentSortField === field) {
+            currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+          } else {
+            currentSortField = field;
+            currentSortOrder = 'asc';
+          }
+          renderGlobalStats();
+        });
+      });
+    }
+
+    function renderSessionStats() {
+      let frontField = document.getElementById("frontField").value || (wordFieldsOrder.length > 0 ? wordFieldsOrder[0] : "N/A");
+      const sessionStats = document.getElementById("sessionStats");
+      sessionStats.textContent =
+        `Practicadas: ${sessionPracticed} | Aciertos: ${correctCount} | Errores: ${sessionPracticed - correctCount} | Racha: ${currentStreak}`;
+      const tbody = document.querySelector("#sessionDetailTable tbody");
+      tbody.innerHTML = "";
+      responses.forEach((resp, i) => {
+        const card = practiceSessionWords[i];
+        const valorFrontal = card ? (card[frontField] || "-") : "-";
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${i + 1}</td><td>${valorFrontal}</td><td>${resp}</td>`;
+        tbody.appendChild(row);
+      });
+    }
+
+    document.getElementById("tabGlobal").addEventListener("click", () => {
+      document.getElementById("globalStatsContainer").classList.add("active");
+      document.getElementById("sessionStatsContainer").classList.remove("active");
+      renderGlobalStats();
+    });
+    document.getElementById("tabSession").addEventListener("click", () => {
+      document.getElementById("sessionStatsContainer").classList.add("active");
+      document.getElementById("globalStatsContainer").classList.remove("active");
+      renderSessionStats();
+    });
+
+    /********************************
+     * FUNCIÓN PARA HABLAR (AUDIO)
+     ********************************/
+    function speak(text) {
+      if ('speechSynthesis' in window && settings.audioEnabled) {
+        const voices = window.speechSynthesis.getVoices();
+        const mandarinVoice = voices.find(voice => voice.lang === 'zh-CN');
+        const utterance = new SpeechSynthesisUtterance(text);
+        if (mandarinVoice) {
+          utterance.voice = mandarinVoice;
+        }
+        utterance.lang = 'zh-CN';
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    /********************************
+     * UTILIDADES
+     ********************************/
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+    
+    function weightedShuffle(array) {
+      return array.map(card => {
+         const total = (card.failCount || 0) + (card.correctCount || 0);
+         const accuracy = total > 0 ? (card.correctCount / total) * 100 : 50;
+         let weight = 100 - accuracy;
+         if (weight <= 0) weight = 0.01;
+         return { card: card, sortKey: -Math.log(Math.random()) / weight };
+      })
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .map(obj => obj.card);
+    }
+
+    function renderCardDetails(card, frontField) {
+      let details = "";
+      wordFields.forEach(field => {
+        if (field.key !== frontField) {
+          details += `<p><strong>${field.label}:</strong> ${card[field.key] || ""}</p>`;
+        }
+      });
+      return details;
+    }
+
+    /********************************
+     * FUNCIÓN PARA RESETEAR ESTADÍSTICAS DE CADA PALABRA
+     ********************************/
+    window.resetStatsForWord = async function(wordId) {
+      if (!confirm("¿Deseas resetear las estadísticas para esta palabra?")) return;
+      let word = words.find(w => w.id === wordId);
+      if (word) {
+        word.failCount = 0;
+        word.correctCount = 0;
+        saveWords();
+      }
+      const user = auth.currentUser;
+      if (user) {
+        const colRef = collection(db, "users", user.uid, "globalHistory");
+        const snapshot = await getDocs(colRef);
+        for (const docSnap of snapshot.docs) {
+          if (docSnap.data().id === wordId) {
+            await deleteDoc(docSnap.ref);
+          }
+        }
+      }
+      alert("Estadísticas reiniciadas para la palabra.");
+      renderGlobalStats();
+    };
+
+    /********************************
+     * AL CARGAR LA PÁGINA
+     ********************************/
+    window.addEventListener("DOMContentLoaded", () => {
+      loadSettings();
+      loadWords();
+      initGlobalStatsSorting();
+      loadCustomFields();
+      if (!words || words.length === 0) {
+        words = [];
+        saveWords();
+      }
+      if (confirm("¿Deseas continuar la sesión anterior?")) {
+        if (loadSessionInProgress()) {
+          if (responses[currentIndex]) { responses[currentIndex] = undefined; }
+          showCard();
+        }
+      } else {
+        clearSessionInProgress();
+      }
+      updateFrontFieldOptions();
+      showSection("sectionPracticar");
+    });
+  </script>
+</body>
+</html>
